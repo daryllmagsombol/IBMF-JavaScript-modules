@@ -1,0 +1,508 @@
+<style>
+  /* ── Church Finder Widget ── */
+  .cf-wrapper {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: 0;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    height: 700px;
+  }
+
+  /* ── Left Panel ── */
+  .cf-list-panel {
+    width: 40%;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+  }
+  .cf-header {
+    padding: 20px 20px 14px;
+    background: linear-gradient(135deg, #1a3a5c 0%, #2d5f8a 100%);
+    color: #fff;
+  }
+  .cf-header h2 {
+    margin: 0 0 10px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .cf-search {
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+    background: rgba(255,255,255,0.95);
+    color: #333;
+  }
+  .cf-search::placeholder { color: #999; }
+
+  .cf-region-filter {
+    padding: 8px 16px;
+    background: #f5f7fa;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .cf-region-select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+  }
+
+  .cf-church-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .cf-church-list::-webkit-scrollbar { width: 6px; }
+  .cf-church-list::-webkit-scrollbar-thumb { background: #c0c0c0; border-radius: 3px; }
+
+  .cf-region-heading {
+    padding: 10px 20px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #1a3a5c;
+    background: #f0f3f7;
+    border-bottom: 1px solid #e0e0e0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .cf-church-item {
+    padding: 14px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s, border-left 0.15s;
+    border-left: 4px solid transparent;
+  }
+  .cf-church-item:hover {
+    background: #f0f6ff;
+    border-left-color: #2d5f8a;
+  }
+  .cf-church-item.active {
+    background: #e3efff;
+    border-left-color: #1a3a5c;
+  }
+  .cf-church-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a3a5c;
+    margin: 0 0 3px;
+  }
+  .cf-church-pastor {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 2px;
+  }
+  .cf-church-address {
+    font-size: 12px;
+    color: #999;
+    margin: 0;
+  }
+  .cf-gmaps-link {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #2d5f8a;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .cf-gmaps-link:hover { text-decoration: underline; }
+
+  .cf-no-results {
+    padding: 40px 20px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+  }
+
+  /* ── Right Panel (Map) ── */
+  .cf-map-panel {
+    flex: 1;
+    position: relative;
+    background: #e8ecf0;
+  }
+  .cf-map-panel iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  .cf-map-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex-direction: column;
+    color: #888;
+    padding: 40px;
+    text-align: center;
+  }
+  .cf-map-placeholder svg {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+  .cf-map-placeholder p {
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .cf-church-count {
+    padding: 8px 20px;
+    font-size: 12px;
+    color: #888;
+    background: #fafafa;
+    border-top: 1px solid #e8e8e8;
+    text-align: center;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .cf-wrapper {
+      flex-direction: column;
+      height: auto;
+    }
+    .cf-list-panel {
+      width: 100%;
+      min-width: unset;
+      max-height: 400px;
+      border-right: none;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .cf-map-panel {
+      height: 400px;
+    }
+  }
+</style>
+
+<div class="cf-wrapper">
+  <!-- Left: Church List -->
+  <div class="cf-list-panel">
+    <div class="cf-header">
+      <h2>Find a Church</h2>
+      <input type="text" class="cf-search" id="cfSearch" placeholder="Search church or pastor name...">
+    </div>
+    <div class="cf-region-filter">
+      <select class="cf-region-select" id="cfRegionFilter">
+        <option value="">All Regions</option>
+      </select>
+    </div>
+    <ul class="cf-church-list" id="cfChurchList"></ul>
+    <div class="cf-church-count" id="cfCount"></div>
+  </div>
+
+  <!-- Right: Google Map -->
+  <div class="cf-map-panel" id="cfMapPanel">
+    <div class="cf-map-placeholder" id="cfPlaceholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+      </svg>
+      <p>Select a church from the list to view its location on the map</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  /* ══════════════════════════════════════════════════════════════
+     CHURCH DATA
+     Each entry: { name, pastor, address, region, gmapsQuery }
+     gmapsQuery is used for both the embed and the external link.
+     ══════════════════════════════════════════════════════════════ */
+  var churches = [
+    // ── CPAF – Mandaluyong / Pasig ──
+    { name: "International Bible Church - Mandaluyong", pastor: "Dr. James Lee Tica", address: "477 Barangka Drive, Mandaluyong City", region: "Mandaluyong / Pasig", gmapsQuery: "International Bible Church Mandaluyong, 477 Barangka Drive, Mandaluyong City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+Mandaluyong+477+Barangka+Drive+Mandaluyong+City+Philippines" },
+    { name: "International Bible Church - Hulo", pastor: "Rev. Frederic Ramos", address: "236 Int. Rd., San Jose St., Mandaluyong City", region: "Mandaluyong / Pasig", gmapsQuery: "International Bible Church Hulo, 236 San Jose St, Mandaluyong City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+Hulo+236+San+Jose+St+Mandaluyong+City+Philippines" },
+    { name: "Harvest Baptist Church - Kalentong", pastor: "Rev. Rey Cadapan", address: "Gen. Kalentong, Cor. Shaw Blvd., Mandaluyong", region: "Mandaluyong / Pasig", gmapsQuery: "Harvest Baptist Church Kalentong, Gen. Kalentong cor Shaw Blvd, Mandaluyong, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Harvest+Baptist+Church+Kalentong+Shaw+Blvd+Mandaluyong+Philippines" },
+    { name: "International Baptist Church - Luis", pastor: "Dr. Edward Isidoro", address: "Maxville VI Luis St., San Miguel, Pasig City", region: "Mandaluyong / Pasig", gmapsQuery: "International Baptist Church Luis St, San Miguel, Pasig City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Luis+St+San+Miguel+Pasig+City+Philippines" },
+    { name: "Transform Community Church", pastor: "Rev. Jerald Sardina", address: "271 Langka St., Villa Cuana 2, Nagpayong, Pinagbuhatan, Pasig City", region: "Mandaluyong / Pasig", gmapsQuery: "Transform Community Church, Nagpayong, Pinagbuhatan, Pasig City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Transform+Community+Church+Nagpayong+Pinagbuhatan+Pasig+City+Philippines" },
+
+    // ── CPAF – Manila ──
+    { name: "International Bible Church - Manila", pastor: "Rev. Dennis Orajay", address: "1929 Pedro Gil St, Santa Ana, Manila", region: "Manila", gmapsQuery: "International Bible Church Manila, 1929 Pedro Gil St, Santa Ana, Manila, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+Manila+1929+Pedro+Gil+St+Santa+Ana+Manila+Philippines" },
+
+    // ── CPAF – Quezon City ──
+    { name: "International Baptist Church - Diliman", pastor: "Rev. Benjie Bautista", address: "77 Diego Silang St., Veterans Vill., Brgy. Pasong Tamo, Quezon City", region: "Quezon City", gmapsQuery: "International Baptist Church Diliman, 77 Diego Silang St, Veterans Village, Quezon City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Diliman+77+Diego+Silang+St+Veterans+Village+Quezon+City+Philippines" },
+    { name: "Mount Paran Baptist Church", pastor: "Rev. Herminigildo Patubo Sr.", address: "34 Corumi St., Masambong, Quezon City", region: "Quezon City", gmapsQuery: "Mount Paran Baptist Church, 34 Corumi St, Masambong, Quezon City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Mount+Paran+Baptist+Church+34+Corumi+St+Masambong+Quezon+City+Philippines" },
+    { name: "International Baptist Church - Novaliches", pastor: "Rev. Fernan Mendoza", address: "Calalang Cmpd., Brgy. Kaligayahan, Novaliches, Quezon City", region: "Quezon City", gmapsQuery: "International Baptist Church Novaliches, Brgy Kaligayahan, Novaliches, Quezon City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Novaliches+Kaligayahan+Quezon+City+Philippines" },
+    { name: "Payatas Fundamental Baptist Church", pastor: "Rev. Rogelio Pantinople", address: "#2 Bicol St., Isangdakot, Payatas, Quezon City", region: "Quezon City", gmapsQuery: "Payatas Fundamental Baptist Church, Bicol St, Payatas, Quezon City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Payatas+Fundamental+Baptist+Church+Bicol+St+Payatas+Quezon+City+Philippines" },
+    { name: "Balara Tabernacle Baptist Church", pastor: "Ptr. Rex Llavore", address: "Area 1B Luzon Ave., Old Balara, Quezon City", region: "Quezon City", gmapsQuery: "Balara Tabernacle Baptist Church, Luzon Ave, Old Balara, Quezon City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Balara+Tabernacle+Baptist+Church+Luzon+Ave+Old+Balara+Quezon+City+Philippines" },
+    { name: "International Baptist Church - San Antonio", pastor: "Ptr. Jubail Ramos", address: "ALHOA San Antonio, Novaliches, Nagkaisang Nayon, Quezon City", region: "Quezon City", gmapsQuery: "International Baptist Church San Antonio, Novaliches, Quezon City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+San+Antonio+Novaliches+Quezon+City+Philippines" },
+
+    // ── Makati ──
+    { name: "International Bible Church - South", pastor: "Rev. Joseph Resngit", address: "Block 279 Lot 11 Loro St., Brgy. Rizal, Makati City", region: "Makati", gmapsQuery: "International Bible Church South, Loro St, Brgy Rizal, Makati City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+South+Loro+St+Brgy+Rizal+Makati+City+Philippines" },
+    { name: "Asiel Baptist Church", pastor: "Rev. Eladio Datuin", address: "119 3F Luzon St., Brgy. Pitogo, Makati City", region: "Makati", gmapsQuery: "Asiel Baptist Church, 119 Luzon St, Brgy Pitogo, Makati City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Asiel+Baptist+Church+119+Luzon+St+Brgy+Pitogo+Makati+City+Philippines" },
+
+    // ── Taguig ──
+    { name: "Temple Baptist Church", pastor: "Ptr. Dennis Mojica", address: "Bicutan, Taguig City", region: "Taguig", gmapsQuery: "Temple Baptist Church, Bicutan, Taguig City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Temple+Baptist+Church+Bicutan+Taguig+City+Philippines" },
+    { name: "Good News Baptist Church", pastor: "", address: "57-V MRT Avenue, Purok 1 Naraville, New Lower Bicutan, 1633 Taguig City", region: "Taguig", gmapsQuery: "Good News Baptist Church, New Lower Bicutan, Taguig City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Good+News+Baptist+Church+New+Lower+Bicutan+Taguig+City+Philippines" },
+
+    // ── Caloocan ──
+    { name: "International Baptist Church - Kaunlaran", pastor: "Rev. Virgilio Mendiola", address: "Blk.11d Lt.21, Ph.III-C, Tatampal St., Kaunlaran Village, Caloocan", region: "Caloocan", gmapsQuery: "International Baptist Church Kaunlaran, Kaunlaran Village, Caloocan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Kaunlaran+Village+Caloocan+Philippines" },
+    { name: "International Baptist Church - Bagumbong", pastor: "Ptr. Alberto Yusef Doca Jr.", address: "Evergreen Executive Village, Bagumbong, Caloocan City", region: "Caloocan", gmapsQuery: "International Baptist Church Bagumbong, Evergreen Executive Village, Caloocan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Bagumbong+Evergreen+Executive+Village+Caloocan+Philippines" },
+    { name: "International Baptist Church - Camarin", pastor: "Rev. Philip Dumlao", address: "NBHOA Camarin Rd Ph6, Caloocan City", region: "Caloocan", gmapsQuery: "International Baptist Church Camarin, Camarin Rd, Caloocan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Camarin+Caloocan+City+Philippines" },
+    { name: "International Baptist Church - Maligaya", pastor: "Rev. Eligio Macatunao", address: "OBM Sunrise St., Maligaya Subd., Brgy 177, North Caloocan City", region: "Caloocan", gmapsQuery: "International Baptist Church Maligaya, Maligaya Subd, North Caloocan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Maligaya+Subd+North+Caloocan+City+Philippines" },
+    { name: "Yard of Joy Church", pastor: "Ptr. Norman Espina", address: "Blk 38 Lot 5 Ilang-ilang St., Maligaya Subd., North Caloocan", region: "Caloocan", gmapsQuery: "Yard of Joy Church, Maligaya Subd, North Caloocan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Yard+of+Joy+Church+Maligaya+Subd+North+Caloocan+Philippines" },
+    { name: "International Baptist Church - Pangarap", pastor: "Ptr. Felicisimo Mendoza", address: "Waling-Waling, Caloocan", region: "Caloocan", gmapsQuery: "International Baptist Church Pangarap, Waling-Waling, Caloocan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Pangarap+Waling-Waling+Caloocan+Philippines" },
+    { name: "International Baptist Church - Saback", pastor: "Ptr. Rafael Boral", address: "Brgy. 178 Purok 5, Sitio 4 Vanguard, Camarin, Caloocan", region: "Caloocan", gmapsQuery: "International Baptist Church Saback, Camarin, Caloocan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Saback+Camarin+Caloocan+Philippines" },
+
+    // ── Rizal (Manila North) ──
+    { name: "House of the Living God Christian Church", pastor: "Ptr. Emmanuel Abella", address: "Montalban, Rizal", region: "Rizal", gmapsQuery: "House of the Living God Christian Church, Montalban, Rodriguez, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=House+of+the+Living+God+Christian+Church+Montalban+Rodriguez+Rizal+Philippines" },
+    { name: "Christian Family Baptist Church - Montalban", pastor: "Rev. Joel Abegonia", address: "Sitio Lower Bangkal Tribu, San Isidro, Rodriguez, Rizal", region: "Rizal", gmapsQuery: "Christian Family Baptist Church, San Isidro, Rodriguez, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christian+Family+Baptist+Church+San+Isidro+Rodriguez+Rizal+Philippines" },
+    { name: "House of Prayer Christian Assembly Baptist Church", pastor: "", address: "Blk.21, Lt.7, 1K2, Kasiglahan Village, Rodriguez, Rizal 1860", region: "Rizal", gmapsQuery: "House of Prayer Christian Assembly Baptist Church, Kasiglahan Village, Rodriguez, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=House+of+Prayer+Christian+Assembly+Baptist+Church+Kasiglahan+Village+Rodriguez+Rizal+Philippines" },
+    { name: "Maranatha Baptist Church - Montalban", pastor: "Rev. Leoncio Amadore Jr.", address: "B5 L8 St., Peter Extn., King David Subd., Burgos, Rodriguez, Rizal", region: "Rizal", gmapsQuery: "Maranatha Baptist Church Montalban, King David Subd, Rodriguez, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Maranatha+Baptist+Church+Montalban+King+David+Subd+Rodriguez+Rizal+Philippines" },
+
+    // ── MEBA – Rizal ──
+    { name: "Calvary Baptist Tabernacle - Baras", pastor: "Rev. Roy Apuan", address: "162 Magsaysay Blvd., Brgy. Santiago, Baras, Rizal", region: "Rizal", gmapsQuery: "Calvary Baptist Tabernacle Baras, 162 Magsaysay Blvd, Baras, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Calvary+Baptist+Tabernacle+Baras+162+Magsaysay+Blvd+Baras+Rizal+Philippines" },
+    { name: "International Baptist Church - East", pastor: "Rev. Remegio Bacani", address: "Lt.2, F4, Cabrera Rd., Brgy. Dolores, Tikling, Taytay, Rizal", region: "Rizal", gmapsQuery: "International Baptist Church East, Cabrera Rd, Tikling, Taytay, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+East+Cabrera+Rd+Tikling+Taytay+Rizal+Philippines" },
+    { name: "International Baptist Church - Taytay", pastor: "Ptr. Bernabe Betero", address: "Road 24 Blk 10, Damayan-Floodway, Taytay, Rizal", region: "Rizal", gmapsQuery: "International Baptist Church Taytay, Damayan-Floodway, Taytay, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Taytay+Damayan+Floodway+Taytay+Rizal+Philippines" },
+    { name: "Jesus is the Way Community Baptist Church", pastor: "Rev. Gerardo Capa", address: "Brgy. Dalig, Teresa, Rizal", region: "Rizal", gmapsQuery: "Jesus is the Way Community Baptist Church, Brgy Dalig, Teresa, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Jesus+is+the+Way+Community+Baptist+Church+Dalig+Teresa+Rizal+Philippines" },
+    { name: "Tanay Community Christian Baptist Church", pastor: "Rev. Gerardo Capa", address: "Seatto Hills, Purok 6, Hilltop Sampaloc, Tanay, Rizal", region: "Rizal", gmapsQuery: "Tanay Community Christian Baptist Church, Sampaloc, Tanay, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Tanay+Community+Christian+Baptist+Church+Sampaloc+Tanay+Rizal+Philippines" },
+    { name: "Hope Bible Church", pastor: "Ptr. Al Stephen Henson", address: "1 Roman Rojas Rd., Abuyod, Antipolo", region: "Rizal", gmapsQuery: "Hope Bible Church, 1 Roman Rojas Rd, Abuyod, Antipolo, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Hope+Bible+Church+1+Roman+Rojas+Rd+Abuyod+Antipolo+Rizal+Philippines" },
+    { name: "Grace Christian International Baptist Church", pastor: "Rev. James Tica", address: "Manila East Rd., Mambog, Binangonan, Rizal", region: "Rizal", gmapsQuery: "Grace Christian International Baptist Church, Manila East Rd, Mambog, Binangonan, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Grace+Christian+International+Baptist+Church+Mambog+Binangonan+Rizal+Philippines" },
+    { name: "Cayabu Christian Bible Church", pastor: "Ptr. Ivan Pascual", address: "Ilang-Ilang St., Barangay Cayabu, Tanay, Rizal", region: "Rizal", gmapsQuery: "Cayabu Christian Bible Church, Barangay Cayabu, Tanay, Rizal, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Cayabu+Christian+Bible+Church+Barangay+Cayabu+Tanay+Rizal+Philippines" },
+
+    // ── Pasig (MEBA) ──
+    { name: "International Baptist Church - Pasig", pastor: "Rev. Leonardo Osias III", address: "Blk.2, Lot 2, Dona Juana Subdivision, Ph.3, Santolan, Pasig", region: "Mandaluyong / Pasig", gmapsQuery: "International Baptist Church Pasig, Dona Juana Subdivision, Santolan, Pasig, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Pasig+Dona+Juana+Subdivision+Santolan+Pasig+Philippines" },
+
+    // ── Bulacan ──
+    { name: "Christ Centered Baptist Church - Bigte", pastor: "Ptr. Idol Dela Peña", address: "Kalye 11, Brgy. Bigte, Norzagaray, Bulacan", region: "Bulacan", gmapsQuery: "Christ Centered Baptist Church Bigte, Norzagaray, Bulacan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christ+Centered+Baptist+Church+Bigte+Norzagaray+Bulacan+Philippines" },
+    { name: "International Baptist Church - Meycauayan", pastor: "Rev. Ferdinand Buela", address: "Blk 38 Lot 12 Matthew St., Sto. Niño Subd., Meycauayan, Bulacan", region: "Bulacan", gmapsQuery: "International Baptist Church Meycauayan, Sto Nino Subd, Meycauayan, Bulacan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Meycauayan+Bulacan+Philippines" },
+    { name: "Francisco Homes Baptist Church", pastor: "Ptr. Gerardo Corpuz Sr.", address: "Phase E Block 5 Lot 7-8, SJDM, Bulacan", region: "Bulacan", gmapsQuery: "Francisco Homes Baptist Church, San Jose Del Monte, Bulacan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Francisco+Homes+Baptist+Church+San+Jose+Del+Monte+Bulacan+Philippines" },
+    { name: "Christian Family Baptist Church", pastor: "Ptr. Raymond Llagas", address: "B18 L34 Verde Heights Subd., Gaya Gaya, City of San Jose Del Monte, Bulacan", region: "Bulacan", gmapsQuery: "Christian Family Baptist Church, Verde Heights, Gaya Gaya, San Jose Del Monte, Bulacan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christian+Family+Baptist+Church+Verde+Heights+Gaya+Gaya+San+Jose+Del+Monte+Bulacan+Philippines" },
+    { name: "International Bible Church - Malolos", pastor: "Ptr. Rolando Pacete", address: "Purok 4, Brgy. Look 1st, Malolos, Bulacan", region: "Bulacan", gmapsQuery: "International Bible Church Malolos, Brgy Look 1st, Malolos, Bulacan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+Malolos+Bulacan+Philippines" },
+    { name: "Household of God Baptist Church", pastor: "Ptr. Ramonet De Guzman", address: "Blk 1 Lot 9 Peter St., Estrella Homes 3, Brgy. Gaya Gaya, San Jose Del Monte, Bulacan", region: "Bulacan", gmapsQuery: "Household of God Baptist Church, Estrella Homes, Gaya Gaya, San Jose Del Monte, Bulacan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Household+of+God+Baptist+Church+Estrella+Homes+Gaya+Gaya+San+Jose+Del+Monte+Bulacan+Philippines" },
+
+    // ── Cavite ──
+    { name: "Toclong Baptist Church", pastor: "Rev. Noel Abegonia", address: "Toclong, Kawit, Cavite", region: "Cavite", gmapsQuery: "Toclong Baptist Church, Toclong, Kawit, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Toclong+Baptist+Church+Kawit+Cavite+Philippines" },
+    { name: "International Baptist Church - Maragondon", pastor: "Rev. Michael Bausin", address: "Garita B. Pugad Lawin, Governor's Dr., Maragondon, Cavite", region: "Cavite", gmapsQuery: "International Baptist Church Maragondon, Governor's Drive, Maragondon, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Maragondon+Cavite+Philippines" },
+    { name: "Calvary Baptist Church - Bacoor", pastor: "Rev. Lorenzo Bobis", address: "530 Maligaya St., Dulong Bayan, Bacoor, Cavite", region: "Cavite", gmapsQuery: "Calvary Baptist Church Bacoor, 530 Maligaya St, Dulong Bayan, Bacoor, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Calvary+Baptist+Church+Bacoor+530+Maligaya+St+Dulong+Bayan+Bacoor+Cavite+Philippines" },
+    { name: "Blessed Hope Baptist Church", pastor: "Rev. Aldo Presco", address: "Blk. 27, Lt. 1 Arkansas St., Manuela Village, Dasmariñas, Cavite", region: "Cavite", gmapsQuery: "Blessed Hope Baptist Church, Manuela Village, Dasmarinas, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Blessed+Hope+Baptist+Church+Manuela+Village+Dasmarinas+Cavite+Philippines" },
+    { name: "Bays Mountain Baptist Church", pastor: "Rev. Jeffrey Perea", address: "197 Balubad St., Marahan 2, Alfonso, Cavite", region: "Cavite", gmapsQuery: "Bays Mountain Baptist Church, 197 Balubad St, Alfonso, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Bays+Mountain+Baptist+Church+197+Balubad+St+Alfonso+Cavite+Philippines" },
+    { name: "Disciple 360 Ministries", pastor: "Rev. Rhenald Lagrimas", address: "Blk.1, Lt. 3-4, Cattleya Homes, Pag-asa 2, Imus", region: "Cavite", gmapsQuery: "Disciple 360 Ministries, Cattleya Homes, Pag-asa 2, Imus, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Disciple+360+Ministries+Cattleya+Homes+Imus+Cavite+Philippines" },
+    { name: "International Baptist Church - Tagaytay", pastor: "Rev. Angelito Panizales", address: "Crisanto M. Delos Reyes Ave., Kaybagal North, Tagaytay", region: "Cavite", gmapsQuery: "International Baptist Church Tagaytay, Crisanto M Delos Reyes Ave, Kaybagal North, Tagaytay, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Tagaytay+Kaybagal+North+Tagaytay+Philippines" },
+    { name: "Nehemiah Christian Baptist Church", pastor: "Ptr. Mark Hafalla", address: "Blk. 54 Lt. 17, Golden Miles, Brgy. Salawag, Dasmariñas, Cavite", region: "Cavite", gmapsQuery: "Nehemiah Christian Baptist Church, Golden Miles, Salawag, Dasmarinas, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Nehemiah+Christian+Baptist+Church+Golden+Miles+Salawag+Dasmarinas+Cavite+Philippines" },
+    { name: "Calvary Baptist Church - Amaya", pastor: "Ptr. Marcelino Dela Cruz", address: "Amaya Uno, Tramo Starfish, Tanza, Cavite", region: "Cavite", gmapsQuery: "Calvary Baptist Church Amaya, Amaya Uno, Tanza, Cavite, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Calvary+Baptist+Church+Amaya+Uno+Tanza+Cavite+Philippines" },
+
+    // ── Batangas ──
+    { name: "New Life Community Church", pastor: "Ptr. Herminigildo Alay", address: "Alitagtag, Batangas", region: "Batangas", gmapsQuery: "New Life Community Church, Alitagtag, Batangas, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=New+Life+Community+Church+Alitagtag+Batangas+Philippines" },
+
+    // ── Pampanga ──
+    { name: "River of Faith Baptist Church", pastor: "Ptr. Joel Simbul", address: "Sebitanan, Sasmuan, Pampanga", region: "Pampanga", gmapsQuery: "River of Faith Baptist Church, Sasmuan, Pampanga, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=River+of+Faith+Baptist+Church+Sasmuan+Pampanga+Philippines" },
+    { name: "Galilean Harvest Baptist Church", pastor: "Ptr. Rodel Paredes", address: "Bancal, Pugad, Lubao, West District, Pampanga", region: "Pampanga", gmapsQuery: "Galilean Harvest Baptist Church, Lubao, Pampanga, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Galilean+Harvest+Baptist+Church+Lubao+Pampanga+Philippines" },
+
+    // ── Bataan ──
+    { name: "Grace Baptist Church - Orani", pastor: "Ptr. Lino Vinzon", address: "Petronilla Village, Orani, Bataan", region: "Bataan", gmapsQuery: "Grace Baptist Church Orani, Petronilla Village, Orani, Bataan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Grace+Baptist+Church+Orani+Bataan+Philippines" },
+    { name: "International Baptist Church - Pilar", pastor: "Ptr. Cipriano Consunji", address: "Petronilla Village, Orani, Bataan", region: "Bataan", gmapsQuery: "International Baptist Church Pilar, Orani, Bataan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Pilar+Orani+Bataan+Philippines" },
+
+    // ── Zambales ──
+    { name: "International Baptist Church - Botolan", pastor: "Rev. Lincoln Anoche", address: "Purok 4, Brgy. Isidro, Botolan, Zambales", region: "Zambales", gmapsQuery: "International Baptist Church Botolan, Brgy Isidro, Botolan, Zambales, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Botolan+Zambales+Philippines" },
+    { name: "International Bible Church - Subic", pastor: "Ptr. Joemar Barredo", address: "0547 Basobas Comp., Brgy. Calapandayan, Subic, Zambales", region: "Zambales", gmapsQuery: "International Bible Church Subic, Brgy Calapandayan, Subic, Zambales, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+Subic+Calapandayan+Zambales+Philippines" },
+    { name: "Shining Light Baptist Church", pastor: "Ptr. Rodelio Manzano", address: "Purok 1, Brgy. San Isidro, Subic, Zambales", region: "Zambales", gmapsQuery: "Shining Light Baptist Church, San Isidro, Subic, Zambales, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Shining+Light+Baptist+Church+San+Isidro+Subic+Zambales+Philippines" },
+    { name: "Tolda Baptist Church", pastor: "Rev. Fernando Ruelo", address: "Purok Dos, WLAC Road, Nagbunga, San Marcelino, Zambales", region: "Zambales", gmapsQuery: "Tolda Baptist Church, Nagbunga, San Marcelino, Zambales, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Tolda+Baptist+Church+Nagbunga+San+Marcelino+Zambales+Philippines" },
+
+    // ── Quezon Province ──
+    { name: "Gilgal Baptist Church - Buenavista", pastor: "Ptr. Democrito Garcia", address: "Sitio Cruz, Brgy. Ibabang Wasay, Buenavista, Quezon", region: "Quezon Province", gmapsQuery: "Gilgal Baptist Church, Buenavista, Quezon Province, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Gilgal+Baptist+Church+Buenavista+Quezon+Province+Philippines" },
+    { name: "Christian Community Baptist Church", pastor: "Ptr. Reynaldo Paglinawan", address: "Aloneros, Quezon", region: "Quezon Province", gmapsQuery: "Christian Community Baptist Church, Aloneros, Quezon, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christian+Community+Baptist+Church+Aloneros+Quezon+Philippines" },
+
+    // ── Benguet ──
+    { name: "Mount Ugo Baptist Church", pastor: "Rev. Elmer Permites", address: "Domolpos, Tinongdan, Itogon, Benguet", region: "Benguet", gmapsQuery: "Mount Ugo Baptist Church, Tinongdan, Itogon, Benguet, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Mount+Ugo+Baptist+Church+Tinongdan+Itogon+Benguet+Philippines" },
+
+    // ── Nueva Vizcaya ──
+    { name: "International Bible Church - Sta. Fe", pastor: "Rev. Ferdinand Palma", address: "Poblacion, Sta. Fe, Nueva Vizcaya", region: "Nueva Vizcaya", gmapsQuery: "International Bible Church Sta Fe, Poblacion, Sta Fe, Nueva Vizcaya, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Bible+Church+Sta+Fe+Nueva+Vizcaya+Philippines" },
+
+    // ── Quirino ──
+    { name: "Maranatha Baptist Church - Diffun", pastor: "Ptr. Marcos Salinas", address: "Purok 3, Liwayway, Diffun, Quirino", region: "Quirino", gmapsQuery: "Maranatha Baptist Church, Liwayway, Diffun, Quirino, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Maranatha+Baptist+Church+Liwayway+Diffun+Quirino+Philippines" },
+
+    // ── Isabela ──
+    { name: "International Baptist Church - Maligaya", pastor: "", address: "Maligaya, Isabela", region: "Isabela", gmapsQuery: "International Baptist Church Maligaya, Isabela, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Maligaya+Isabela+Philippines" },
+
+    // ── Valenzuela ──
+    { name: "Cornerstone Fundamental Baptist Church", pastor: "Rev. Elmer Permites", address: "3/F Acuña Bldg., 705 G Lazaro St., Dalandan, Valenzuela City", region: "Valenzuela", gmapsQuery: "Cornerstone Fundamental Baptist Church, 705 G Lazaro St, Dalandan, Valenzuela City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Cornerstone+Fundamental+Baptist+Church+705+G+Lazaro+St+Dalandan+Valenzuela+City+Philippines" },
+
+    // ── Nueva Ecija ──
+    { name: "International Baptist Church - Cabanatuan", pastor: "Rev. Gaudencio Pestaño Sr.", address: "#360 Purok 6, M.S. Garcia, Cabanatuan City", region: "Nueva Ecija", gmapsQuery: "International Baptist Church Cabanatuan, M.S. Garcia, Cabanatuan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Cabanatuan+M.S.+Garcia+Cabanatuan+City+Philippines" },
+    { name: "Buliran Faith Baptist Church", pastor: "Ptr. Marcos Salinas", address: "Buliran, Cabanatuan City", region: "Nueva Ecija", gmapsQuery: "Buliran Faith Baptist Church, Buliran, Cabanatuan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Buliran+Faith+Baptist+Church+Cabanatuan+City+Philippines" },
+    { name: "Christian Lights International Baptist Church", pastor: "", address: "P. 1 Sta. Ana, Brgy. Bago, Gen. Tinio", region: "Nueva Ecija", gmapsQuery: "Christian Lights International Baptist Church, Brgy Bago, Gen Tinio, Nueva Ecija, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christian+Lights+International+Baptist+Church+Gen+Tinio+Nueva+Ecija+Philippines" },
+    { name: "Christian International Baptist Church", pastor: "Rev. Gene Retotar", address: "Sitio Pulo, Brgy. Kalikid Norte, Cabanatuan City", region: "Nueva Ecija", gmapsQuery: "Christian International Baptist Church, Kalikid Norte, Cabanatuan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christian+International+Baptist+Church+Kalikid+Norte+Cabanatuan+City+Philippines" },
+    { name: "Harvest Fundamental Baptist Church", pastor: "Ptr. Kurt Rigunay", address: "Panacsac, Gen. Natividad, Nueva Ecija", region: "Nueva Ecija", gmapsQuery: "Harvest Fundamental Baptist Church, Panacsac, Gen Natividad, Nueva Ecija, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Harvest+Fundamental+Baptist+Church+Panacsac+Gen+Natividad+Nueva+Ecija+Philippines" },
+    { name: "Digmala Christian Baptist Church", pastor: "Ptr. Winlove Sebios", address: "Purok 1, Brgy. Digmala, Bongabon, Nueva Ecija", region: "Nueva Ecija", gmapsQuery: "Digmala Christian Baptist Church, Brgy Digmala, Bongabon, Nueva Ecija, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Digmala+Christian+Baptist+Church+Bongabon+Nueva+Ecija+Philippines" },
+    { name: "International Baptist Church - Palayan", pastor: "Ptr. Elmer Villajuan", address: "Efipanio St., Brgy. Santolan, Palayan City", region: "Nueva Ecija", gmapsQuery: "International Baptist Church Palayan, Brgy Santolan, Palayan City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Palayan+Brgy+Santolan+Palayan+City+Philippines" },
+    { name: "Christian Mission Fellowship", pastor: "Rev. Michael Ang", address: "New Kia Bldg., Maharlika Highway, Bitas, Cabanatuan", region: "Nueva Ecija", gmapsQuery: "Christian Mission Fellowship, Maharlika Highway, Bitas, Cabanatuan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Christian+Mission+Fellowship+Maharlika+Highway+Bitas+Cabanatuan+Philippines" },
+
+    // ── Pangasinan ──
+    { name: "Parkway Baptist Church", pastor: "Rev. Wilfredo Agapay", address: "Zone 5, Brgy. Amamperez, Villasis, Pangasinan", region: "Pangasinan", gmapsQuery: "Parkway Baptist Church, Amamperez, Villasis, Pangasinan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Parkway+Baptist+Church+Villasis+Pangasinan+Philippines" },
+    { name: "Amazing Grace Baptist Mission - Manaoag", pastor: "Ptr. Reuben Ligando", address: "Sanchez, Asingan, Pangasinan", region: "Pangasinan", gmapsQuery: "Amazing Grace Baptist Mission Manaoag, Asingan, Pangasinan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Amazing+Grace+Baptist+Mission+Manaoag+Asingan+Pangasinan+Philippines" },
+    { name: "Camanggan Baptist Church", pastor: "Rev. Romulo Calaunan", address: "Camangaan, Binalonan, Pangasinan", region: "Pangasinan", gmapsQuery: "Camanggan Baptist Church, Binalonan, Pangasinan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Camanggan+Baptist+Church+Binalonan+Pangasinan+Philippines" },
+    { name: "Amazing Grace Baptist Church", pastor: "Rev. Dominador Murillo", address: "Aragaag, Bantog, Asingan, Pangasinan", region: "Pangasinan", gmapsQuery: "Amazing Grace Baptist Church, Bantog, Asingan, Pangasinan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Amazing+Grace+Baptist+Church+Bantog+Asingan+Pangasinan+Philippines" },
+    { name: "Macayo Baptist Church", pastor: "", address: "Alcala, Pangasinan", region: "Pangasinan", gmapsQuery: "Macayo Baptist Church, Alcala, Pangasinan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Macayo+Baptist+Church+Alcala+Pangasinan+Philippines" },
+    { name: "Battlefield Baptist Church", pastor: "Ptr. Josue Cabico", address: "Minien East, Sta. Barbara, Pangasinan", region: "Pangasinan", gmapsQuery: "Battlefield Baptist Church, Sta Barbara, Pangasinan, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Battlefield+Baptist+Church+Sta+Barbara+Pangasinan+Philippines" },
+
+    // ── Tarlac ──
+    { name: "International Baptist Church - Gerona", pastor: "Ptr. Glaymor Castro", address: "Purok 5, Brgy. Bawa, Gerona, Tarlac", region: "Tarlac", gmapsQuery: "International Baptist Church Gerona, Brgy Bawa, Gerona, Tarlac, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Gerona+Tarlac+Philippines" },
+
+    // ── Oriental Mindoro ──
+    { name: "IBC Minolo - Puerto Galera", pastor: "Ptr. Charlie Lizaca", address: "Sto. Niño Baclayan, Puerto Galera, Oriental Mindoro", region: "Oriental Mindoro", gmapsQuery: "IBC Minolo, Sto Nino Baclayan, Puerto Galera, Oriental Mindoro, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=IBC+Minolo+Puerto+Galera+Oriental+Mindoro+Philippines" },
+
+    // ── Visayas ──
+    { name: "International Baptist Church - Dayhagan", pastor: "Ptr. Noemi Catalan", address: "Dayhagan, Visayas", region: "Visayas", gmapsQuery: "International Baptist Church Dayhagan, Visayas, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Dayhagan+Visayas+Philippines" },
+    { name: "Sunrise Baptist Mission", pastor: "Ptr. Timothy Canlas", address: "Visayas", region: "Visayas", gmapsQuery: "Sunrise Baptist Mission, Visayas, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Sunrise+Baptist+Mission+Visayas+Philippines" },
+
+    // ── South Cotabato ──
+    { name: "International Baptist Church - Datal Blobo", pastor: "Ptr. Dianitor Benagua", address: "Brgy. Maibo, Tantangan, South Cotabato", region: "South Cotabato", gmapsQuery: "International Baptist Church Datal Blobo, Tantangan, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Datal+Blobo+Tantangan+South+Cotabato+Philippines" },
+    { name: "International Baptist Church - Libas", pastor: "Ptr. Celso Dala", address: "Sitio Libas, San Vicente, Banga, South Cotabato", region: "South Cotabato", gmapsQuery: "International Baptist Church Libas, Banga, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Libas+Banga+South+Cotabato+Philippines" },
+    { name: "International Baptist Church IBMF-PHILS (Tiboli)", pastor: "Rev. Dibo Dala", address: "Lamsalome, Tiboli, South Cotabato", region: "South Cotabato", gmapsQuery: "International Baptist Church IBMF, Lamsalome, Tiboli, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+IBMF+Lamsalome+Tiboli+South+Cotabato+Philippines" },
+    { name: "LTCC Lamtabong", pastor: "Ptr. Edward Dasilva", address: "Lambingi, Banga, South Cotabato", region: "South Cotabato", gmapsQuery: "LTCC Lamtabong, Lambingi, Banga, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=LTCC+Lamtabong+Lambingi+Banga+South+Cotabato+Philippines" },
+    { name: "International Baptist Church - Basak", pastor: "Ptr. Ariel Ging", address: "Lamsalome, Tiboli, South Cotabato", region: "South Cotabato", gmapsQuery: "International Baptist Church Basak, Lamsalome, Tiboli, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Basak+Lamsalome+Tiboli+South+Cotabato+Philippines" },
+    { name: "International Baptist Church - Lamlobong", pastor: "Ptr. Juanito Masangkay", address: "Sitio Lamlobong, Lamsalome, Tiboli, South Cotabato", region: "South Cotabato", gmapsQuery: "International Baptist Church Lamlobong, Lamsalome, Tiboli, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Lamlobong+Lamsalome+Tiboli+South+Cotabato+Philippines" },
+
+    // ── Sultan Kudarat ──
+    { name: "International Baptist Church - Mahogany", pastor: "Ptr. Ronald Vigilia", address: "Bagumbayan, Sultan Kudarat", region: "Sultan Kudarat", gmapsQuery: "International Baptist Church Mahogany, Bagumbayan, Sultan Kudarat, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Mahogany+Bagumbayan+Sultan+Kudarat+Philippines" },
+    { name: "International Baptist Church Mission", pastor: "Ptr. Celso Dala", address: "Brgy. Sto. Niño, Bagumbayan, Sultan Kudarat", region: "Sultan Kudarat", gmapsQuery: "International Baptist Church Mission, Sto Nino, Bagumbayan, Sultan Kudarat, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+Mission+Sto+Nino+Bagumbayan+Sultan+Kudarat+Philippines" },
+    { name: "International Baptist Church IBMF-PHILS (Sultan Kudarat)", pastor: "Ptr. Rudy Dala", address: "Lamsalome, Tiboli, South Cotabato", region: "Sultan Kudarat", gmapsQuery: "International Baptist Church IBMF, Lamsalome, Tiboli, South Cotabato, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=International+Baptist+Church+IBMF+Rudy+Dala+Lamsalome+Tiboli+South+Cotabato+Philippines" },
+
+    // ── General Santos ──
+    { name: "Life Under Grace Community", pastor: "Ptr. Jeremiah John Placino", address: "Salvani St. Cor. Scorpio St., City Heights, General Santos City", region: "General Santos", gmapsQuery: "Life Under Grace Community, City Heights, General Santos City, Philippines", gmapsLink: "https://www.google.com/maps/search/?api=1&query=Life+Under+Grace+Community+City+Heights+General+Santos+City+Philippines" }
+  ];
+
+  // ── Build Region List ──
+  var regions = [];
+  churches.forEach(function(c) {
+    if (regions.indexOf(c.region) === -1) regions.push(c.region);
+  });
+
+  var regionSelect = document.getElementById('cfRegionFilter');
+  regions.forEach(function(r) {
+    var opt = document.createElement('option');
+    opt.value = r;
+    opt.textContent = r;
+    regionSelect.appendChild(opt);
+  });
+
+  // ── Render Church List ──
+  function renderList(filter, regionFilter) {
+    var list = document.getElementById('cfChurchList');
+    list.innerHTML = '';
+    var searchLower = (filter || '').toLowerCase();
+    var count = 0;
+    var currentRegion = '';
+
+    churches.forEach(function(c, idx) {
+      // Filter
+      if (regionFilter && c.region !== regionFilter) return;
+      if (searchLower) {
+        var haystack = (c.name + ' ' + c.pastor + ' ' + c.address + ' ' + c.region).toLowerCase();
+        if (haystack.indexOf(searchLower) === -1) return;
+      }
+
+      // Region heading
+      if (c.region !== currentRegion) {
+        currentRegion = c.region;
+        var heading = document.createElement('li');
+        heading.className = 'cf-region-heading';
+        heading.textContent = c.region;
+        list.appendChild(heading);
+      }
+
+      var li = document.createElement('li');
+      li.className = 'cf-church-item';
+      li.setAttribute('data-idx', idx);
+
+      var nameEl = document.createElement('p');
+      nameEl.className = 'cf-church-name';
+      nameEl.textContent = c.name;
+      li.appendChild(nameEl);
+
+      if (c.pastor) {
+        var pastorEl = document.createElement('p');
+        pastorEl.className = 'cf-church-pastor';
+        pastorEl.textContent = c.pastor;
+        li.appendChild(pastorEl);
+      }
+
+      var addrEl = document.createElement('p');
+      addrEl.className = 'cf-church-address';
+      addrEl.textContent = c.address;
+      li.appendChild(addrEl);
+
+      var linkEl = document.createElement('a');
+      linkEl.className = 'cf-gmaps-link';
+      linkEl.href = c.gmapsLink;
+      linkEl.target = '_blank';
+      linkEl.rel = 'noopener';
+      linkEl.textContent = 'Open in Google Maps ↗';
+      li.appendChild(linkEl);
+
+      // Click → load map
+      li.addEventListener('click', function(e) {
+        if (e.target.tagName === 'A') return; // let link clicks pass through
+        selectChurch(idx);
+      });
+
+      list.appendChild(li);
+      count++;
+    });
+
+    // No results
+    if (count === 0) {
+      var noRes = document.createElement('li');
+      noRes.className = 'cf-no-results';
+      noRes.textContent = 'No churches found matching your search.';
+      list.appendChild(noRes);
+    }
+
+    document.getElementById('cfCount').textContent = count + ' of ' + churches.length + ' churches';
+  }
+
+  // ── Select a Church → Show Map ──
+  function selectChurch(idx) {
+    var c = churches[idx];
+
+    // Highlight active
+    var items = document.querySelectorAll('.cf-church-item');
+    items.forEach(function(el) { el.classList.remove('active'); });
+    var active = document.querySelector('.cf-church-item[data-idx="' + idx + '"]');
+    if (active) active.classList.add('active');
+
+    // Load map embed
+    var mapPanel = document.getElementById('cfMapPanel');
+    var query = encodeURIComponent(c.gmapsQuery);
+    mapPanel.innerHTML = '<iframe src="https://maps.google.com/maps?q=' + query + '&t=&z=15&ie=UTF8&iwloc=&output=embed" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
+  }
+
+  // ── Event Listeners ──
+  var searchInput = document.getElementById('cfSearch');
+  var debounceTimer;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      renderList(searchInput.value, regionSelect.value);
+    }, 250);
+  });
+
+  regionSelect.addEventListener('change', function() {
+    renderList(searchInput.value, regionSelect.value);
+  });
+
+  // ── Initial Render ──
+  renderList('', '');
+})();
+</script>
