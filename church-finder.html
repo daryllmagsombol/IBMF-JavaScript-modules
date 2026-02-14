@@ -249,26 +249,150 @@
     background: #f5f5f5;
   }
 
+  /* ── Mobile Tab Bar ── */
+  .cf-mobile-tabs {
+    display: none;
+    background: #1a3a5c;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .cf-mobile-tabs button {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: "Nunito", "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .cf-mobile-tabs button.active {
+    color: #fff;
+  }
+  .cf-mobile-tabs button.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    right: 20%;
+    height: 3px;
+    background: #fff;
+    border-radius: 3px 3px 0 0;
+  }
+  .cf-mobile-tabs button svg {
+    display: block;
+    margin: 0 auto 3px;
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+  }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .cf-wrapper {
       flex-direction: column;
-      height: auto;
+      height: 100vh;
+      height: 100dvh; /* dynamic viewport height for mobile browsers */
+      max-height: 100vh;
+      max-height: 100dvh;
+      border-radius: 0;
+    }
+    .cf-mobile-tabs {
+      display: flex;
+      flex-shrink: 0;
+    }
+    .cf-header h2 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .cf-header {
+      padding: 14px 16px 10px;
+    }
+    .cf-search {
+      padding: 9px 12px;
+      font-size: 14px;
+    }
+    .cf-region-filter {
+      padding: 6px 12px;
     }
     .cf-list-panel {
       width: 100%;
       min-width: unset;
-      max-height: 400px;
+      flex: 1;
       border-right: none;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: none;
+      overflow: hidden;
+    }
+    .cf-list-panel.cf-hidden {
+      display: none;
     }
     .cf-map-panel {
-      height: 450px;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+    }
+    .cf-map-panel.cf-hidden {
+      display: none;
+    }
+    #cfLeafletMap {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+    }
+    .cf-church-item {
+      padding: 12px 16px;
+    }
+    .cf-church-name {
+      font-size: 14px;
+    }
+    .cf-church-pastor {
+      font-size: 12px;
+    }
+    .cf-church-address {
+      font-size: 11px;
+    }
+    .cf-reset-btn {
+      top: 8px;
+      right: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .cf-wrapper {
+      border: none;
+      box-shadow: none;
+    }
+    .cf-header h2 {
+      font-size: 16px;
     }
   }
 </style>
 
 <div class="cf-wrapper">
+  <!-- Mobile Tab Switcher -->
+  <div class="cf-mobile-tabs" id="cfMobileTabs">
+    <button id="cfTabList" class="active" type="button">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"
+        />
+      </svg>
+      List
+    </button>
+    <button id="cfTabMap" type="button">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"
+        />
+      </svg>
+      Map
+    </button>
+  </div>
+
   <!-- Left: Church List -->
   <div class="cf-list-panel">
     <div class="cf-header">
@@ -1434,6 +1558,50 @@
       regionSelect.appendChild(opt);
     });
 
+    // ──────────── MOBILE TAB SWITCHING ────────────
+    var tabListBtn = document.getElementById("cfTabList");
+    var tabMapBtn = document.getElementById("cfTabMap");
+    var listPanel = document.querySelector(".cf-list-panel");
+    var mapPanel = document.querySelector(".cf-map-panel");
+
+    function isMobile() {
+      return window.matchMedia("(max-width: 768px)").matches;
+    }
+
+    function switchTab(tab) {
+      if (!isMobile()) return;
+      if (tab === "map") {
+        listPanel.classList.add("cf-hidden");
+        mapPanel.classList.remove("cf-hidden");
+        tabMapBtn.classList.add("active");
+        tabListBtn.classList.remove("active");
+        setTimeout(function () {
+          map.invalidateSize();
+        }, 50);
+      } else {
+        mapPanel.classList.add("cf-hidden");
+        listPanel.classList.remove("cf-hidden");
+        tabListBtn.classList.add("active");
+        tabMapBtn.classList.remove("active");
+      }
+    }
+
+    tabListBtn.addEventListener("click", function () {
+      switchTab("list");
+    });
+    tabMapBtn.addEventListener("click", function () {
+      switchTab("map");
+    });
+
+    // Handle resize: show both panels on desktop
+    window.addEventListener("resize", function () {
+      if (!isMobile()) {
+        listPanel.classList.remove("cf-hidden");
+        mapPanel.classList.remove("cf-hidden");
+        map.invalidateSize();
+      }
+    });
+
     // ──────────── RENDER CHURCH LIST ────────────
     var visibleIndices = [];
 
@@ -1562,6 +1730,10 @@
 
       // If selected from list → fly to pin & open popup
       if (source === "list") {
+        // On mobile, auto-switch to map tab
+        if (isMobile()) {
+          switchTab("map");
+        }
         markerCluster.zoomToShowLayer(markers[idx], function () {
           markers[idx].openPopup();
         });
@@ -1604,5 +1776,15 @@
 
     // ──────────── INITIAL RENDER ────────────
     renderList("", "");
+
+    // On mobile, hide map panel initially (show list first)
+    if (isMobile()) {
+      mapPanel.classList.add("cf-hidden");
+    }
+
+    // Fix map render on initial load
+    setTimeout(function () {
+      map.invalidateSize();
+    }, 200);
   })();
 </script>
